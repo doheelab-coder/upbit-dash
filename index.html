@@ -143,7 +143,7 @@ if(window.mermaid)mermaid.initialize({startOnLoad:false,theme:'dark',securityLev
 const fmt=n=>Math.round(n||0).toLocaleString('ko-KR');
 const pct=n=>(n>=0?'+':'')+(n||0).toFixed(3)+'%';
 const num=n=>Number(n).toLocaleString('ko-KR',{maximumFractionDigits:8});
-let pc=null, lc=null, ldc=null, mmDone=false;
+let pc=null, lc=null, mmDone=false;
 function _yr(ds){const v=ds.flatMap(d=>d.data).filter(x=>x!=null&&isFinite(x));if(!v.length)return{};const lo=Math.min(...v),hi=Math.max(...v),p=Math.max((hi-lo)*0.15,0.05);return{min:lo-p,max:hi+p};}
 let RANGE={from:null,to:null};
 function _day9(){const n=new Date();const d=new Date(n.getFullYear(),n.getMonth(),n.getDate(),9,0,0);if(n<d)d.setDate(d.getDate()-1);return d;}  // 당일 시작 = 최근 KST 9시(업비트 일봉 개장). 9시 전이면 전일 9시.
@@ -285,18 +285,28 @@ function lineChart(canvas,old,h){
   return new Chart(canvas,{type:'line',data:{labels:h.map(x=>x.ts),datasets:ds},
     options:{responsive:true,animation:false,plugins:{legend:{labels:{color:'#8b949e'}}},scales:{x:{ticks:{color:'#6e7681',maxTicksLimit:8},grid:{color:'#1c2128'}},y:{ticks:{color:'#6e7681'},grid:{color:'#1c2128'},..._yr(ds)}}}});
 }
-function dailyPnl(hist){   // equity 곡선 → 날짜별 그날 손익(첫→끝 equity). ts='MM-DD HH:MM:SS'(연도없음)라 날짜키=slice(0,5)
+function dailyPnl(hist){   // equity 곡선 → 날짜별 그날 손익(그날 첫→끝). ts='MM-DD HH:MM:SS'(연도없음)라 날짜키=slice(0,5)
   if(!hist||!hist.length)return [];
   const byDay={};
-  for(const h of hist){if(h.equity==null)continue;const k=(h.ts||'').slice(0,5);(byDay[k]=byDay[k]||[]).push(h.equity);}
+  for(const h of hist){if(h.equity==null)continue;const k=(h.ts||'').slice(0,5);(byDay[k]=byDay[k]||[]).push(h);}
   return Object.keys(byDay).sort().map(d=>{const a=byDay[d],s=a[0],e=a[a.length-1];
-    return {day:d,won:e-s,pct:s?(e/s-1)*100:0};});
+    const gp=s.equity?(e.equity/s.equity-1)*100:0;
+    let bp=null;                                              // BTC 홀드(baseline) — 같은 날 첫→끝, bh는 누적%라 index로 환산
+    if(s.bh!=null&&e.bh!=null){const si=1+s.bh/100;bp=si?((1+e.bh/100)/si-1)*100:0;}
+    return {day:d,won:e.equity-s.equity,pct:gp,bh:bp,diff:bp==null?null:gp-bp};});
 }
-function dailyBar(canvas,old,hist){   // 일별 손익 막대(양수 초록/음수 빨강) + 툴팁에 원·%
-  if(old)old.destroy();
+function dailyTable(hist){   // 일별 손익 표 — 그리드 vs BTC 홀드(baseline). 막대차트 대체
   const dd=dailyPnl(hist);
-  return new Chart(canvas,{type:'bar',data:{labels:dd.map(x=>x.day),datasets:[{data:dd.map(x=>x.pct),backgroundColor:dd.map(x=>x.pct>=0?'#3fb950':'#f85149'),borderWidth:0}]},
-    options:{responsive:true,animation:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const x=dd[c.dataIndex];return `${x.pct>=0?'+':''}${x.pct.toFixed(3)}%  (${x.won>=0?'+':''}${Math.round(x.won).toLocaleString('ko-KR')}원)`;}}}},scales:{x:{ticks:{color:'#6e7681'},grid:{display:false}},y:{ticks:{color:'#6e7681',callback:v=>v+'%'},grid:{color:'#1c2128'}}}}});
+  if(!dd.length)return '<div class="chartbox" style="color:var(--mut);padding:16px 4px">데이터 없음</div>';
+  const rows=dd.map(x=>{
+    const gc=x.pct>=0?'up':'down', bc=x.bh==null?'':(x.bh>=0?'up':'down'), dc=x.diff==null?'':(x.diff>=0?'up':'down');
+    const dtxt=x.diff==null?'-':(x.diff>=0?'+':'')+x.diff.toFixed(3)+'%p';
+    return `<tr><td>${x.day}</td>`+
+      `<td class="${gc}">${pct(x.pct)} <span style="color:var(--mut);font-weight:400">(${x.won>=0?'+':''}${fmt(x.won)}원)</span></td>`+
+      `<td class="${bc}">${x.bh==null?'-':pct(x.bh)}</td>`+
+      `<td class="${dc}">${dtxt}</td></tr>`;
+  }).join('');
+  return `<div class="chartbox"><table><thead><tr><th>날짜</th><th>그리드 손익</th><th>BTC 홀드</th><th>그리드−홀드</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function render(d){
   window._d=d;
@@ -341,10 +351,9 @@ function render(d){
     ${d.holdings.coins.map(h=>{const hc=h.pnl>=0?'up':'down';return `<tr><td>${h.coin}</td><td>${num(h.qty)}</td><td>${fmt(h.avg)}</td><td>${num(h.price)}</td><td>${fmt(h.value)}원</td><td class="${hc}">${pct(h.pnl)}</td></tr>`;}).join('')}
     <tr style="font-weight:600;border-top:1px solid #30363d"><td>합계</td><td colspan="3"></td><td>${fmt(d.holdings.total)}원</td><td class="${d.holdings.pnl>=0?'up':'down'}">${pct(d.holdings.pnl)}</td></tr>
     </tbody></table></div>`:''}
-    <h2>📊 일별 손익 추이</h2>
-    <div class="chartbox"><canvas id="lDaily" height="110"></canvas></div>`;
+    <h2>📊 일별 손익 추이 <span style="font-size:.72rem;color:var(--mut);font-weight:400">그리드 vs BTC 홀드</span></h2>
+    ${dailyTable(L.history||[])}`;
     lc=lineChart(document.getElementById('lChart'),lc,rangeFilter(L.history||[]));
-    ldc=dailyBar(document.getElementById('lDaily'),ldc,L.history||[]);
   }else{
     lb.innerHTML=`<div class="card" style="text-align:center;color:var(--mut);padding:30px">
       💤 <b>실거래 미시작</b><br/><br/>페이퍼 검증을 통과한 코인만 소액으로 시작합니다.<br/>
