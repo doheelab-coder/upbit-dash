@@ -36,6 +36,7 @@
   #gate .card{max-width:320px;width:90%;text-align:center}
   .tip{position:relative;border-bottom:1px dotted var(--mut);cursor:help}
   .tip:hover::after,.tip:active::after{content:attr(data-tip);position:absolute;left:50%;transform:translateX(-50%);bottom:150%;width:230px;background:#0d1117;color:#c9d1d9;padding:8px 10px;border-radius:6px;font-size:.72rem;font-weight:400;line-height:1.45;z-index:20;border:1px solid var(--line);white-space:normal;box-shadow:0 4px 14px rgba(0,0,0,.55)}
+  #pSel .tip:hover::after,#pSel .tip:active::after{left:0;transform:none}  /* 코인 버튼 툴팁 — 왼쪽 정렬(첫 버튼 화면밖 잘림 방지) */
   #gate input{width:100%;padding:10px;margin:12px 0;background:#0e1116;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:1rem}
   #gate button{width:100%;padding:10px;background:var(--ac);border:none;border-radius:8px;color:#0e1116;font-weight:700;font-size:1rem;cursor:pointer}
   /* 모바일 반응형 — 카드 넘침/깨짐 방지 */
@@ -119,6 +120,17 @@ flowchart TD
     <p><b>지정가 양방향 그리드</b> — "이 가격이면 살게 / 이 가격이면 팔게"를 <b>동시에</b> 걸어두고, 가격이 출렁일 때 <b>사는값·파는값 차이</b>를 먹는다. 수수료(왕복 0.1%)를 빼고도 남으면 +.</p>
     <p style="color:#8b949e;font-size:.82rem">페이퍼는 <b>호가 깊이 기반 체결 모델</b>이라 낙관적이다 — 지정가는 이미 쌓인 주문 뒤에 서므로 그 물량이 소진돼야 체결된다. <b>진짜 수익성은 실거래에서만</b> 확인된다.</p>
     <p><b>위험 관리는 여러 겹으로</b> 둔다 — 한 방향 누적 매수 차단, 하락 추세 매수 중단, 재고 상한, 물림 탈출, 계좌 단위 킬스위치. <b>검증 안 된 코인은 라이브 진입 금지</b> — 페이퍼에서 수수료 떼고도 +가 나야 실거래로 넘긴다.</p>
+
+    <h3>전략 종류 <span style="color:var(--mut);font-weight:400;font-size:.82rem">— 위 코인 버튼에 마우스를 올리면 각 설명이 떠요</span></h3>
+    <ul class="lg">
+      <li><b>기본 그리드</b> (BTC·DOGE·ETH·SOL·XRP) — 한 칸 아래서 사고 한 칸 위에서 바로 판다. 횡보장에서 스프레드를 반복 수취.</li>
+      <li><b>BTC·trail</b> (트레일링 매도) — 강한 상승이 확인되면 매도를 미뤄 더 높은 값에 판다(랠리를 끝까지 태움). 상승장 수익을 키우는 게 목표, 대신 급반락 땐 못 판 재고가 부담. 기본(BTC)과 A/B 비교 중.</li>
+      <li><b>BTC·livemirror</b> (라이브 미러) — 실거래와 똑같은 설정으로 도는 페이퍼. 페이퍼 체결이 실거래보다 얼마나 후한지만 딱 떼어 보는 비교용.</li>
+    </ul>
+
+    <h3>페이퍼와 실거래가 달라 보일 때</h3>
+    <p style="color:#8b949e;font-size:.82rem">보통 셋 중 하나다 — <b>①설정이 다르거나</b>(그리드 폭·자본이 서로 다른 실험), <b>②실거래가 재고에 물려 평가손실 중</b>이거나, <b>③페이퍼 체결이 낙관적</b>이라서. 실현손익만 보면 대체로 비슷하고, <b>전체 손익의 부호는 재고 평가손익이 가른다</b>. ③은 <b>라이브 미러</b>로 격리해 재는 중.</p>
+
     <p style="margin-top:10px">📖 <a href="https://doheelab.atlassian.net/wiki/spaces/~6167d0ad07ac3c00689b46b0/pages/74252336" target="_blank" style="color:var(--ac)">자세한 로직·손익 계산·운영비용 (위키) →</a></p>
     <p style="margin-top:4px">🛠 <a href="https://doheelab.atlassian.net/wiki/spaces/~6167d0ad07ac3c00689b46b0/pages/74448898" target="_blank" style="color:var(--ac)">파라미터 튜닝 가이드 (위키) →</a></p>
   </div>
@@ -170,6 +182,13 @@ function coinSeries(h,coin){   // 이 코인 데이터 있는 포인트만 + 표
     b:(x.b!=null&&b0!=null)?((1+x.b/100)/(1+b0/100)-1)*100:x.b}));
 }
 let selCoin=null;
+// 전략별 설명 — 코인/전략 선택 버튼 호버 시 표시. 라벨 접미사(·trail 등)로 판별, 없으면 기본 그리드.
+const STRAT_TIP={
+  base:'기본 양방향 그리드 — 한 칸 아래서 사고 한 칸 위에서 바로 판다. 횡보장에서 사는값·파는값 차이(스프레드)를 반복 수취. 강한 추세가 오면 재고가 한쪽으로 쏠릴 위험이 있다.',
+  trail:'트레일링 매도(상승 탑승) — 기본 그리드에 얹은 변형. 강한 상승이 확인되면 바로 안 팔고 매도를 미뤄 더 높은 값에 판다. 상승장 수익을 키우는 게 목표 — 대신 상승이 안 오면 기본과 똑같고, 급반락하면 못 판 재고가 손실로 남는다. 기본(BTC)과 나란히 비교 중.',
+  livemirror:'라이브 미러(공정 비교) — 실거래와 완전히 같은 설정(그리드 폭·동시주문 수·자본)으로 도는 페이퍼. 실거래와 유일한 차이는 실제 주문 체결 여부뿐. 설정을 똑같이 맞춰서, 페이퍼 체결이 실거래보다 얼마나 후하게 잡히는지만 딱 떼어 보는 비교용.'
+};
+function stratTip(label){const t=((label||'').split('·')[1]||'').toLowerCase();return STRAT_TIP[t]||STRAT_TIP.base;}
 function selectCoin(c){selCoin=c;try{localStorage.setItem('mmCoin',c)}catch(e){}if(window._P)drawPCoin(window._P);}
 function drawPCoin(P){   // 선택 코인 큰 차트(손익 vs 홀드 B&H) + 선택 버튼 + 코인별 카드 — 합산 안 함
   const h=rangeFilter(P.history||[]);
@@ -179,7 +198,7 @@ function drawPCoin(P){   // 선택 코인 큰 차트(손익 vs 홀드 B&H) + 선
   const cdOf=c=>(P.coins||[]).find(x=>(x.label||x.market.split('-')[1])===c)||{};
   // 코인 선택 버튼 (코인 + 현재 손익)
   document.getElementById('pSel').innerHTML=coins.map(c=>{const cd=cdOf(c),cc=(cd.pnl||0)>=0?'up':'down';
-    return `<span class="tab${c===selCoin?' on':''}" style="flex:none;padding:6px 14px;font-size:.85rem" onclick="selectCoin('${c}')">${c} <b class="${cc}">${pct(cd.pnl||0)}</b></span>`;}).join('');
+    return `<span class="tab${c===selCoin?' on':''}" style="flex:none;padding:6px 14px;font-size:.85rem" onclick="selectCoin('${c}')"><span class="tip" data-tip="${stratTip(c)}">${c}</span> <b class="${cc}">${pct(cd.pnl||0)}</b></span>`;}).join('');
   // 선택 코인 카드
   const cd=cdOf(selCoin),s=coinSeries(h,selCoin),last=s.length?s[s.length-1]:{};
   const pc1=(cd.pnl||0)>=0?'up':'down',bc=(last.b||0)>=0?'up':'down';
