@@ -228,7 +228,7 @@ const DATA_URL='https://x2uf2eag3tydxjbk5njvsavssa0iypdv.lambda-url.ap-northeast
 const FALLBACK_URL='https://raw.githubusercontent.com/doheelab-coder/upbit-dash/data/data.txt';
 function _neterr(m){const e=new Error(m);e.kind='net';return e;}
 async function _fetchB64(u){
-  let res; try{res=await fetch(u+(u.indexOf('?')<0?'?':'&')+'_='+Date.now());}catch(e){throw _neterr('fetch');}
+  let res; try{res=await fetch(u+(u.indexOf('?')<0?'?':'&')+'_='+Date.now(),{cache:'no-store'});}catch(e){throw _neterr('fetch');}
   if(!res.ok)throw _neterr('http '+res.status);                 // 503 등 — 네트워크 차단·서버오류
   const b64=(await res.text()).replace(/\s/g,'');
   if(!/^[A-Za-z0-9+/=]+$/.test(b64)||b64.length<24)throw _neterr('badbody');  // base64 아님(차단 HTML 등)
