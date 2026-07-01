@@ -287,18 +287,19 @@ function lineChart(canvas,old,h){
   return new Chart(canvas,{type:'line',data:{labels:h.map(x=>x.ts),datasets:ds},
     options:{responsive:true,animation:false,plugins:{legend:{labels:{color:'#8b949e'}}},scales:{x:{ticks:{color:'#6e7681',maxTicksLimit:8},grid:{color:'#1c2128'}},y:{ticks:{color:'#6e7681'},grid:{color:'#1c2128'},..._yr(ds)}}}});
 }
-function dailyPnl(hist){   // equity 곡선 → 거래일별 그날 손익(그날 첫→끝). 거래일 경계=09시 KST(업비트 일봉·그리드 리셋과 동일). 자정(slice)이 아니라 _dayKey9로 버킷팅
+function dailyPnl(hist,dailyBh){   // equity 곡선 → 거래일별 그날 손익(그날 첫→끝). 거래일 경계=09시 KST(업비트 일봉·그리드 리셋과 동일). 자정(slice)이 아니라 _dayKey9로 버킷팅
   if(!hist||!hist.length)return [];
   const byDay={};
   for(const h of hist){if(h.equity==null)continue;const k=_dayKey9(h.ts||'');(byDay[k]=byDay[k]||[]).push(h);}
   return Object.keys(byDay).sort().map(d=>{const a=byDay[d],s=a[0],e=a[a.length-1];
     const gp=s.equity?(e.equity/s.equity-1)*100:0;
-    let bp=null;                                              // BTC 홀드(baseline) — 같은 날 첫→끝, bh는 누적%라 index로 환산
-    if(s.bh!=null&&e.bh!=null){const si=1+s.bh/100;bp=si?((1+e.bh/100)/si-1)*100:0;}
+    let bp=null;                                              // BTC 홀드 — 업비트 일봉 정본(daily_bh, 전일종가→종가=전일대비) 우선. 없으면 bh곡선 근사 폴백
+    if(dailyBh&&dailyBh[d]!=null)bp=dailyBh[d];
+    else if(s.bh!=null&&e.bh!=null){const si=1+s.bh/100;bp=si?((1+e.bh/100)/si-1)*100:0;}
     return {day:d,won:e.equity-s.equity,pct:gp,bh:bp,diff:bp==null?null:gp-bp};});
 }
-function dailyTable(hist){   // 일별 손익 표 — 그리드 vs BTC 홀드(baseline). 막대차트 대체. 최신일 위로(내림차순)
-  const dd=dailyPnl(hist).slice().reverse();
+function dailyTable(hist,dailyBh){   // 일별 손익 표 — 그리드 vs BTC 홀드(일봉 정본). 막대차트 대체. 최신일 위로(내림차순)
+  const dd=dailyPnl(hist,dailyBh).slice().reverse();
   if(!dd.length)return '<div class="chartbox" style="color:var(--mut);padding:16px 4px">데이터 없음</div>';
   const rows=dd.map(x=>{
     const gc=x.pct>=0?'up':'down', bc=x.bh==null?'':(x.bh>=0?'up':'down'), dc=x.diff==null?'':(x.diff>=0?'up':'down');
@@ -354,7 +355,7 @@ function render(d){
     <tr style="font-weight:600;border-top:1px solid #30363d"><td>합계</td><td colspan="3"></td><td>${fmt(d.holdings.total)}원</td><td class="${d.holdings.pnl>=0?'up':'down'}">${pct(d.holdings.pnl)}</td></tr>
     </tbody></table></div>`:''}
     <h2>📊 일별 손익 추이 <span style="font-size:.72rem;color:var(--mut);font-weight:400">그리드 vs BTC 홀드</span></h2>
-    ${dailyTable(L.history||[])}`;
+    ${dailyTable(L.history||[],L.daily_bh||null)}`;
     lc=lineChart(document.getElementById('lChart'),lc,rangeFilter(L.history||[]));
   }else{
     lb.innerHTML=`<div class="card" style="text-align:center;color:var(--mut);padding:30px">
