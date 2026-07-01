@@ -149,6 +149,8 @@ let RANGE={from:null,to:null};
 function _day9(){const n=new Date();const d=new Date(n.getFullYear(),n.getMonth(),n.getDate(),9,0,0);if(n<d)d.setDate(d.getDate()-1);return d;}  // 당일 시작 = 최근 KST 9시(업비트 일봉 개장). 9시 전이면 전일 9시.
 function _dstr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function tsDate(ts){return new Date(new Date().getFullYear()+'-'+ts.replace(' ','T'));}
+function _dayKey9(ts){return _dayKey(ts,9);}  // 업비트 일봉 경계(09시 KST) 기준 거래일 키 'MM-DD'. 09시 전이면 전일. _day9()와 동일 앵커.
+function _dayKey(ts,anchor){if(!ts)return '';const d=tsDate(ts);d.setHours(d.getHours()-anchor);return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function setPreset(r){
   const now=new Date();
   if(r==='today')RANGE={from:_day9(),to:null};       // 당일=최근 KST 9시 고정(업비트 일봉 개장 경계). 상한 없음 — 데이터엔 미래 점 없어 to:now는 폰 시계 오차 시 최근 점을 잘라냄
@@ -285,10 +287,10 @@ function lineChart(canvas,old,h){
   return new Chart(canvas,{type:'line',data:{labels:h.map(x=>x.ts),datasets:ds},
     options:{responsive:true,animation:false,plugins:{legend:{labels:{color:'#8b949e'}}},scales:{x:{ticks:{color:'#6e7681',maxTicksLimit:8},grid:{color:'#1c2128'}},y:{ticks:{color:'#6e7681'},grid:{color:'#1c2128'},..._yr(ds)}}}});
 }
-function dailyPnl(hist){   // equity 곡선 → 날짜별 그날 손익(그날 첫→끝). ts='MM-DD HH:MM:SS'(연도없음)라 날짜키=slice(0,5)
+function dailyPnl(hist){   // equity 곡선 → 거래일별 그날 손익(그날 첫→끝). 거래일 경계=09시 KST(업비트 일봉·그리드 리셋과 동일). 자정(slice)이 아니라 _dayKey9로 버킷팅
   if(!hist||!hist.length)return [];
   const byDay={};
-  for(const h of hist){if(h.equity==null)continue;const k=(h.ts||'').slice(0,5);(byDay[k]=byDay[k]||[]).push(h);}
+  for(const h of hist){if(h.equity==null)continue;const k=_dayKey9(h.ts||'');(byDay[k]=byDay[k]||[]).push(h);}
   return Object.keys(byDay).sort().map(d=>{const a=byDay[d],s=a[0],e=a[a.length-1];
     const gp=s.equity?(e.equity/s.equity-1)*100:0;
     let bp=null;                                              // BTC 홀드(baseline) — 같은 날 첫→끝, bh는 누적%라 index로 환산
