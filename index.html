@@ -146,12 +146,12 @@ const num=n=>Number(n).toLocaleString('ko-KR',{maximumFractionDigits:8});
 let pc=null, lc=null, mmDone=false;
 function _yr(ds){const v=ds.flatMap(d=>d.data).filter(x=>x!=null&&isFinite(x));if(!v.length)return{};const lo=Math.min(...v),hi=Math.max(...v),p=Math.max((hi-lo)*0.15,0.05);return{min:lo-p,max:hi+p};}
 let RANGE={from:null,to:null};
-function _today0(){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate());}
+function _day9(){const n=new Date();const d=new Date(n.getFullYear(),n.getMonth(),n.getDate(),9,0,0);if(n<d)d.setDate(d.getDate()-1);return d;}  // 당일 시작 = 최근 KST 9시(업비트 일봉 개장). 9시 전이면 전일 9시.
 function _dstr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function tsDate(ts){return new Date(new Date().getFullYear()+'-'+ts.replace(' ','T'));}
 function setPreset(r){
   const now=new Date();
-  if(r==='today')RANGE={from:_today0(),to:null};       // 상한 없음 — 데이터엔 미래 점이 없어, to:now는 폰 시계 오차 시 최근 점을 잘라냄
+  if(r==='today')RANGE={from:_day9(),to:null};       // 당일=최근 KST 9시 고정(업비트 일봉 개장 경계). 상한 없음 — 데이터엔 미래 점 없어 to:now는 폰 시계 오차 시 최근 점을 잘라냄
   else if(r==='24h')RANGE={from:new Date(now-864e5),to:null};
   else if(r==='7d')RANGE={from:new Date(now-7*864e5),to:null};
   else RANGE={from:null,to:null};
