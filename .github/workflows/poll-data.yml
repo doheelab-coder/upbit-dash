@@ -1,0 +1,40 @@
+name: poll-dashboard-data
+# 일부 네트워크에서 Lambda·vercel이 막힐 수 있어, GitHub로 데이터를 미러링한다.
+# 5분마다 Lambda를 호출해 암호화 base64 blob을 data 브랜치(data.txt)에 복사.
+# 대시보드(index.html)는 Lambda 실패 시 raw.githubusercontent.../data/data.txt 로 자동 fallback.
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # GitHub Actions 최소 주기 5분 (지연될 수 있음)
+  workflow_dispatch:         # 수동 실행/검증용
+permissions:
+  contents: write
+concurrency:
+  group: poll-data
+  cancel-in-progress: true
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Fetch encrypted snapshot from Lambda and publish to data branch
+        env:
+          LAMBDA_URL: https://x2uf2eag3tydxjbk5njvsavssa0iypdv.lambda-url.ap-northeast-2.on.aws/
+        run: |
+          set -euo pipefail
+          curl -sS --max-time 25 "${LAMBDA_URL}?_=$(date +%s)" -o /tmp/data.txt || { echo "::warning::curl failed"; exit 0; }
+          # 무결성 검사: base64 텍스트여야 함 (Lambda 500 'error:' 또는 차단 HTML 이면 기존 data 유지하고 skip)
+          if ! grep -qE '^[A-Za-z0-9+/=]+$' /tmp/data.txt || [ "$(wc -c < /tmp/data.txt)" -lt 24 ]; then
+            echo "::warning::invalid payload (not base64), skip publish"; head -c 200 /tmp/data.txt; exit 0
+          fi
+          echo "payload bytes: $(wc -c < /tmp/data.txt)"
+          git config user.name  "dash-data-bot"
+          git config user.email "dash-data-bot@users.noreply.github.com"
+          # data 브랜치는 단일 파일만 (orphan + force-push → 히스토리 누적 없음, repo 비대 방지)
+          git checkout --orphan data
+          git rm -rf . >/dev/null 2>&1 || true
+          cp /tmp/data.txt data.txt
+          git add data.txt
+          git commit -m "data $(date -u +%FT%TZ)"
+          git push -f origin data

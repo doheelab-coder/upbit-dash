@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>업비트 마켓메이킹 — 모니터</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root{--bg:#0e1116;--card:#171b22;--line:#222831;--txt:#e6edf3;--mut:#8b949e;--up:#3fb950;--down:#f85149;--ac:#58a6ff;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6}
+  .wrap{max-width:920px;margin:0 auto;padding:24px 16px 60px}
+  h1{font-size:1.4rem}.sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+  .sub a{color:var(--ac)}
+  h2{font-size:1.05rem;margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  h3{font-size:.95rem;margin:16px 0 6px;color:var(--ac)}
+  .tabs{display:flex;gap:8px;margin-bottom:14px}
+  .tab{flex:1;padding:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;text-align:center;cursor:pointer;font-weight:600;color:var(--mut)}
+  .tab.on{color:var(--txt);border-color:var(--ac);background:#1a2230}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .card .k{color:var(--mut);font-size:.78rem;margin-bottom:6px}.card .v{font-size:1.4rem;font-weight:700}
+  .v.up{color:var(--up)}.v.down{color:var(--down)}
+  .chartbox{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:12px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:6px}
+  th,td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}th{color:var(--mut)}
+  .up{color:var(--up)}.down{color:var(--down)}
+  .lg{margin:8px 0 8px 18px;color:#c9d1d9}.lg li{margin:5px 0}.card p{color:#c9d1d9;margin:6px 0}
+  .mermaid{background:#0e1116;border-radius:8px;padding:10px;text-align:center;min-height:60px}
+  .disc{color:var(--mut);font-size:.78rem;margin-top:26px;padding-top:14px;border-top:1px solid var(--line)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700}
+  .badge.live{background:#1f2d1a;color:var(--up)}.badge.dry{background:#21262d;color:var(--mut)}
+  #gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:99}
+  #gate .card{max-width:320px;width:90%;text-align:center}
+  .tip{position:relative;border-bottom:1px dotted var(--mut);cursor:help}
+  .tip:hover::after,.tip:active::after{content:attr(data-tip);position:absolute;left:50%;transform:translateX(-50%);bottom:150%;width:230px;background:#0d1117;color:#c9d1d9;padding:8px 10px;border-radius:6px;font-size:.72rem;font-weight:400;line-height:1.45;z-index:20;border:1px solid var(--line);white-space:normal;box-shadow:0 4px 14px rgba(0,0,0,.55)}
+  #gate input{width:100%;padding:10px;margin:12px 0;background:#0e1116;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:1rem}
+  #gate button{width:100%;padding:10px;background:var(--ac);border:none;border-radius:8px;color:#0e1116;font-weight:700;font-size:1rem;cursor:pointer}
+  /* 모바일 반응형 — 카드 넘침/깨짐 방지 */
+  .cards{grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr))}
+  .card{min-width:0}.card .v{overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .mermaid svg{max-width:100%!important;height:auto!important}
+  @media (max-width:480px){
+    .wrap{padding:16px 12px 48px}
+    h1{font-size:1.2rem}
+    .cards{grid-template-columns:repeat(auto-fit,minmax(106px,1fr));gap:8px}
+    .card{padding:12px}.card .v{font-size:1.05rem}.card .k{font-size:.72rem}
+    .tabs{gap:6px}.tab{padding:8px;font-size:.85rem}
+    table{font-size:.72rem}th,td{padding:6px 5px}
+    .tip:hover::after,.tip:active::after{width:auto;max-width:86vw}
+  }
+</style></head>
+<body>
+<div id="gate"><div class="card"><div style="font-size:2rem">🔒</div>
+  <h2 style="border:none;margin:8px 0 0">MM 모니터</h2>
+  <input id="pw" type="password" inputmode="latin" lang="en" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="password (영문)">
+  <button id="unlock">열기</button>
+  <div id="gerr" style="color:var(--down);font-size:.85rem;margin-top:8px;min-height:1em"></div>
+</div></div>
+
+<div class="wrap" id="app" style="display:none">
+  <h1>📊 업비트 마켓메이킹 — 모니터</h1>
+  <div class="sub" id="updated"></div>
+
+  <div id="rangeBar" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px">
+    <span class="rqp tab" data-r="today" style="flex:none;padding:4px 10px;font-size:.78rem" onclick="setPreset('today')">오늘</span>
+    <span class="rqp tab" data-r="24h" style="flex:none;padding:4px 10px;font-size:.78rem" onclick="setPreset('24h')">24h</span>
+    <span class="rqp tab" data-r="7d" style="flex:none;padding:4px 10px;font-size:.78rem" onclick="setPreset('7d')">7일</span>
+    <span class="rqp tab" data-r="all" style="flex:none;padding:4px 10px;font-size:.78rem" onclick="setPreset('all')">전체</span>
+    <input type="date" id="dFrom" style="background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:3px 6px;font-size:.78rem">
+    <span style="color:var(--mut)">~</span>
+    <input type="date" id="dTo" style="background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:3px 6px;font-size:.78rem">
+  </div>
+
+  <div class="tabs">
+    <div class="tab on" id="tabP" onclick="showTab('P')">📄 페이퍼 모니터</div>
+    <div class="tab" id="tabL" onclick="showTab('L')">💰 실거래</div>
+  </div>
+
+  <div id="viewP">
+    <div id="pSel" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+    <div class="cards" id="pCards"></div>
+    <div id="pRank" class="card" style="margin-top:12px;display:none"></div>
+    <div class="chartbox" style="margin-top:10px"><canvas id="pChart" height="120"></canvas></div>
+    <h2>코인별 성과</h2>
+    <div class="chartbox"><table id="pCoin"><thead><tr><th>코인</th><th>손익</th><th><span class="tip" data-tip="이 코인의 전일 종가(자정 KST) 대비 시장 가격 등락률. 내 봇 손익이 아니라 코인 자체 가격 변동. 크게 ±면 추세장 = 재고 물릴 위험 신호.">24h시장</span></th><th>체결(매수/매도)</th><th><span class="tip" data-tip="보유한 이 코인 평가액이 그 코인 배정자산에서 차지하는 비중(%). 높을수록 한쪽으로 사 모은 상태 = 가격 하락 시 손실 위험. 상한(100%↑) 닿으면 매수 중단·매도만.">재고</span></th></tr></thead><tbody></tbody></table></div>
+    <h2>🧾 체결 히스토리</h2>
+    <div class="chartbox"><table id="pTrades"><thead><tr><th>일시</th><th>코인</th><th>구분</th><th>체결가</th><th>수량</th><th>근거</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div id="viewL" style="display:none">
+    <div id="liveBody"></div>
+  </div>
+
+  <h2>📋 표 읽는 법</h2>
+  <div class="card"><p><b>재고 + 체결균형 = MM 건강도.</b></p><ul class="lg">
+    <li>✅ 체결 균형 + 재고 낮음 + 손익 + → 건강한 MM (스프레드만 먹고 빠짐)</li>
+    <li>⚠️ 체결 한쪽 쏠림 + 재고 높음 + 손익 − → 재고 함정(역선택). 추세 코인서 발생</li>
+  </ul></div>
+
+  <h2>🔀 거래 프로세스</h2>
+  <div class="chartbox"><div class="mermaid">
+flowchart TD
+  A["종목 선정"] --> C{"페이퍼 검증<br/>수수료 떼고 +?"}
+  C -->|통과| D["라이브 진입 허용"]
+  C -->|실패| X["라이브 금지<br/>페이퍼만"]
+  D --> F["봇 가동<br/>양방향 지정가<br/>다층 방어·손절"]
+  F --> G["대시보드"]
+  F -->|"검증 지속"| H["소액 실거래 → 확대"]
+  F --> K{"계좌 손실<br/>2단계 킬"}
+  K -->|"soft"| K1["매수중단·재고감축"]
+  K -->|"hard"| K2["전량청산"]
+  </div></div>
+
+  <h2>⚙️ 어떻게 돌아가나</h2>
+  <div class="card">
+    <p><b>지정가 양방향 그리드</b> — "이 가격이면 살게 / 이 가격이면 팔게"를 <b>동시에</b> 걸어두고, 가격이 출렁일 때 <b>사는값·파는값 차이</b>를 먹는다. 수수료(왕복 0.1%)를 빼고도 남으면 +.</p>
+    <p style="color:#8b949e;font-size:.82rem">페이퍼는 <b>호가 깊이 기반 체결 모델</b>이라 낙관적이다 — 지정가는 이미 쌓인 주문 뒤에 서므로 그 물량이 소진돼야 체결된다. <b>진짜 수익성은 실거래에서만</b> 확인된다.</p>
+    <p><b>위험 관리는 여러 겹으로</b> 둔다 — 한 방향 누적 매수 차단, 하락 추세 매수 중단, 재고 상한, 물림 탈출, 계좌 단위 킬스위치. <b>검증 안 된 코인은 라이브 진입 금지</b> — 페이퍼에서 수수료 떼고도 +가 나야 실거래로 넘긴다.</p>
+    <p style="margin-top:10px">📖 <a href="https://doheelab.atlassian.net/wiki/spaces/~6167d0ad07ac3c00689b46b0/pages/74252336" target="_blank" style="color:var(--ac)">자세한 로직·손익 계산·운영비용 (위키) →</a></p>
+    <p style="margin-top:4px">🛠 <a href="https://doheelab.atlassian.net/wiki/spaces/~6167d0ad07ac3c00689b46b0/pages/74448898" target="_blank" style="color:var(--ac)">파라미터 튜닝 가이드 (위키) →</a></p>
+  </div>
+
+  <div class="disc">🔄 60초 자동새로고침 · 서버가 3분마다 갱신(세션 무관). ⚠️ 연구·교육용. 투자 권유 아님. 페이퍼는 시뮬 체결이라 낙관적이며, 실제 수익성은 라이브에서만 확인됨.</div>
+</div>
+
+<script>
+if(window.mermaid)mermaid.initialize({startOnLoad:false,theme:'dark',securityLevel:'loose',themeVariables:{fontSize:'12px',lineColor:'#58a6ff',primaryColor:'#171b22',primaryTextColor:'#e6edf3'}});
+const fmt=n=>Math.round(n||0).toLocaleString('ko-KR');
+const pct=n=>(n>=0?'+':'')+(n||0).toFixed(3)+'%';
+const num=n=>Number(n).toLocaleString('ko-KR',{maximumFractionDigits:8});
+let pc=null, lc=null, mmDone=false;
+function _yr(ds){const v=ds.flatMap(d=>d.data).filter(x=>x!=null&&isFinite(x));if(!v.length)return{};const lo=Math.min(...v),hi=Math.max(...v),p=Math.max((hi-lo)*0.15,0.05);return{min:lo-p,max:hi+p};}
+let RANGE={from:null,to:null};
+function _today0(){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate());}
+function _dstr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function tsDate(ts){return new Date(new Date().getFullYear()+'-'+ts.replace(' ','T'));}
+function setPreset(r){
+  const now=new Date();
+  if(r==='today')RANGE={from:_today0(),to:null};       // 상한 없음 — 데이터엔 미래 점이 없어, to:now는 폰 시계 오차 시 최근 점을 잘라냄
+  else if(r==='24h')RANGE={from:new Date(now-864e5),to:null};
+  else if(r==='7d')RANGE={from:new Date(now-7*864e5),to:null};
+  else RANGE={from:null,to:null};
+  const df=document.getElementById('dFrom'),dt=document.getElementById('dTo');
+  if(df){df.value=RANGE.from?_dstr(RANGE.from):'';dt.value=RANGE.to?_dstr(RANGE.to):_dstr(now);}
+  document.querySelectorAll('.rqp').forEach(x=>x.classList.toggle('on',x.dataset.r===r));
+  if(window._d)render(window._d);
+}
+function rangeFilter(h){
+  if(!h||!h.length)return h||[];
+  let f=h;
+  if(RANGE.from||RANGE.to)f=h.filter(x=>{const t=tsDate(x.ts);return(!RANGE.from||t>=RANGE.from)&&(!RANGE.to||t<=RANGE.to);});
+  if(!f.length)return [];
+  const e0=f[0].equity,b0=f[0].bh;
+  return f.map(x=>{const o={ts:x.ts,equity:x.equity,coins:x.coins};
+    o.pnl=(e0&&x.equity!=null)?(x.equity/e0-1)*100:x.pnl;
+    if(x.bh!=null&&b0!=null)o.bh=((1+x.bh/100)/(1+b0/100)-1)*100;
+    o.fee=x.fee;   // 누적 수수료(절대값) 그대로 통과 — 카드에서 구간 끝−시작 차분
+    return o;});
+}
+const COINCOL=['#58a6ff','#3fb950','#f0a020','#f85149','#a371f7','#39c5cf'];
+function coinSeries(h,coin){   // 이 코인 데이터 있는 포인트만 + 표시구간 첫 점 기준 재정렬(0서 시작)
+  const pts=h.filter(x=>x.coins&&x.coins[coin]).map(x=>({ts:x.ts,p:x.coins[coin].p,b:x.coins[coin].b}));
+  if(!pts.length)return pts;
+  const p0=pts[0].p,b0=pts[0].b;
+  return pts.map(x=>({ts:x.ts,
+    p:(x.p!=null&&p0!=null)?((1+x.p/100)/(1+p0/100)-1)*100:x.p,
+    b:(x.b!=null&&b0!=null)?((1+x.b/100)/(1+b0/100)-1)*100:x.b}));
+}
+let selCoin=null;
+function selectCoin(c){selCoin=c;try{localStorage.setItem('mmCoin',c)}catch(e){}if(window._P)drawPCoin(window._P);}
+function drawPCoin(P){   // 선택 코인 큰 차트(손익 vs 홀드 B&H) + 선택 버튼 + 코인별 카드 — 합산 안 함
+  const h=rangeFilter(P.history||[]);
+  const coins=(P.coins||[]).map(c=>c.label||c.market.split('-')[1]);   // 전략 구분 라벨(BTC·trail 등)
+  if(!coins.length)return;
+  if(!coins.includes(selCoin)){const m=localStorage.getItem('mmCoin');selCoin=(m&&coins.includes(m))?m:coins[0];}
+  const cdOf=c=>(P.coins||[]).find(x=>(x.label||x.market.split('-')[1])===c)||{};
+  // 코인 선택 버튼 (코인 + 현재 손익)
+  document.getElementById('pSel').innerHTML=coins.map(c=>{const cd=cdOf(c),cc=(cd.pnl||0)>=0?'up':'down';
+    return `<span class="tab${c===selCoin?' on':''}" style="flex:none;padding:6px 14px;font-size:.85rem" onclick="selectCoin('${c}')">${c} <b class="${cc}">${pct(cd.pnl||0)}</b></span>`;}).join('');
+  // 선택 코인 카드
+  const cd=cdOf(selCoin),s=coinSeries(h,selCoin),last=s.length?s[s.length-1]:{};
+  const pc1=(cd.pnl||0)>=0?'up':'down',bc=(last.b||0)>=0?'up':'down';
+  document.getElementById('pCards').innerHTML=`
+    <div class="card"><div class="k">${selCoin} 손익</div><div class="v ${pc1}">${pct(cd.pnl||0)}</div></div>
+    <div class="card"><div class="k">손익(원)</div><div class="v ${pc1}">${fmt((cd.equity||0)-1000000)}원</div></div>
+    <div class="card"><div class="k">홀드(B&H)</div><div class="v ${bc}">${pct(last.b||0)}</div></div>
+    <div class="card"><div class="k">실현 손익</div><div class="v">${fmt(cd.realized||0)}원</div></div>
+    <div class="card"><div class="k">체결(매수/매도)</div><div class="v">${cd.buys||0}/${cd.sells||0}</div></div>
+    <div class="card"><div class="k">재고비중</div><div class="v">${cd.inv_frac||0}%${cd.stopped?' ⛔':''}</div></div>`;
+  // 큰 차트 (손익 실선 vs 홀드 점선)
+  const col=COINCOL[coins.indexOf(selCoin)%6];
+  const ds=[{label:selCoin+' 손익(%)',data:s.map(x=>x.p),borderColor:col,backgroundColor:'transparent',fill:false,tension:.2,pointRadius:s.length<3?3:0,borderWidth:2.2},
+            {label:'홀드 B&H(%)',data:s.map(x=>x.b),borderColor:'#8b949e',borderDash:[5,4],fill:false,tension:.2,pointRadius:0,borderWidth:1.5}];
+  if(pc)pc.destroy();
+  pc=new Chart(document.getElementById('pChart'),{type:'line',data:{labels:s.map(x=>x.ts),datasets:ds},options:{responsive:true,animation:false,plugins:{legend:{labels:{color:'#8b949e',boxWidth:10}}},scales:{x:{ticks:{color:'#6e7681',maxTicksLimit:8},grid:{color:'#1c2128'}},y:{ticks:{color:'#6e7681'},grid:{color:'#1c2128'},..._yr(ds)}}}});
+}
+function showTab(t){
+  document.getElementById('viewP').style.display=t==='P'?'block':'none';
+  document.getElementById('viewL').style.display=t==='L'?'block':'none';
+  document.getElementById('tabP').classList.toggle('on',t==='P');
+  document.getElementById('tabL').classList.toggle('on',t==='L');
+  try{localStorage.setItem('mmTab',t)}catch(e){}
+}
+const DATA_URL='https://x2uf2eag3tydxjbk5njvsavssa0iypdv.lambda-url.ap-northeast-2.on.aws/';
+// 일부 네트워크에서 Lambda·vercel이 막힐 수 있어, GitHub Action이 5분마다 같은 blob을 data 브랜치에 복사 → raw.githubusercontent로 자동 fallback.
+const FALLBACK_URL='https://raw.githubusercontent.com/doheelab-coder/upbit-dash/data/data.txt';
+function _neterr(m){const e=new Error(m);e.kind='net';return e;}
+async function _fetchB64(u){
+  let res; try{res=await fetch(u+(u.indexOf('?')<0?'?':'&')+'_='+Date.now());}catch(e){throw _neterr('fetch');}
+  if(!res.ok)throw _neterr('http '+res.status);                 // 503 등 — 네트워크 차단·서버오류
+  const b64=(await res.text()).replace(/\s/g,'');
+  if(!/^[A-Za-z0-9+/=]+$/.test(b64)||b64.length<24)throw _neterr('badbody');  // base64 아님(차단 HTML 등)
+  return b64;
+}
+async function decrypt(pw){
+  let b64; try{b64=await _fetchB64(DATA_URL);}catch(e){b64=await _fetchB64(FALLBACK_URL);}  // Lambda(최신) 우선, 막히면 GitHub
+  const raw=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+  const salt=raw.slice(8,16),ct=raw.slice(16);
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
+  const bits=new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},km,384));
+  const key=await crypto.subtle.importKey('raw',bits.slice(0,32),{name:'AES-CBC'},false,['decrypt']);
+  const pt=await crypto.subtle.decrypt({name:'AES-CBC',iv:bits.slice(32,48)},key,ct);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function unlock(){
+  const pw=document.getElementById('pw').value; let d;
+  try{d=await decrypt(pw);}
+  catch(e){
+    document.getElementById('gerr').textContent = (e&&e.kind==='net')
+      ? '데이터를 못 불러왔어요 — 네트워크/차단 문제 (막히면 다른 네트워크에서 시도)'
+      : '비밀번호가 틀렸어요';
+    return;
+  }
+  sessionStorage.setItem('pw',pw);
+  document.getElementById('gate').style.display='none';document.getElementById('app').style.display='block';
+  showTab(localStorage.getItem('mmTab')||'P'); setInterval(refresh,60000);
+  try{render(d);}catch(re){console.error('render',re);}   // 렌더 에러를 비번 오류로 오인하지 않음
+}
+async function refresh(){try{render(await decrypt(sessionStorage.getItem('pw')));}catch(e){}}
+document.getElementById('unlock').addEventListener('click',unlock);
+document.getElementById('pw').addEventListener('input',e=>{e.target.value=e.target.value.replace(/[^\x20-\x7E]/g,'');});
+document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter')unlock();});
+window.addEventListener('load',()=>{const p=sessionStorage.getItem('pw');if(p){document.getElementById('pw').value=p;unlock();}document.getElementById('pw').focus();});
+(function(){  // 기간선택 초기화 — 기본 '오늘 0시~'
+  ['dFrom','dTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',()=>{
+    const f=document.getElementById('dFrom').value,t=document.getElementById('dTo').value;
+    RANGE={from:f?new Date(f+'T00:00:00'):null,to:t?new Date(t+'T23:59:59'):null};
+    document.querySelectorAll('.rqp').forEach(x=>x.classList.remove('on'));
+    if(window._d)render(window._d);
+  });});
+  setPreset('today');
+})();
+
+function tradeRows(trades){
+  const tr=(trades||[]).slice().sort((a,b)=>a.ts<b.ts?1:-1);   // 일자/시간 내림차순(최신 위)
+  return tr.length? tr.map(f=>{const sc=f.side==='매수'?'down':'up';
+    return `<tr><td>${f.ts}</td><td>${f.coin}</td><td class="${sc}">${f.side}</td><td>${num(f.price)}</td><td>${num(f.qty)}</td><td>${f.spb!=null?'스프레드 '+f.spb+'bps 수취':'-'}</td></tr>`;}).join('')
+    : '<tr><td colspan="6" style="text-align:center;color:#6e7681">아직 체결 없음</td></tr>';
+}
+function lineChart(canvas,old,h){
+  if(old)old.destroy();
+  const ds=[{label:'손익(%)',data:h.map(x=>x.pnl),borderColor:'#58a6ff',backgroundColor:'rgba(88,166,255,.1)',fill:true,tension:.2,pointRadius:h.length<3?3:0,borderWidth:2},{label:'BTC 홀드(%)',data:h.map(x=>x.bh),borderColor:'#8b949e',borderDash:[5,4],fill:false,tension:.2,pointRadius:0,borderWidth:1.5}];
+  return new Chart(canvas,{type:'line',data:{labels:h.map(x=>x.ts),datasets:ds},
+    options:{responsive:true,animation:false,plugins:{legend:{labels:{color:'#8b949e'}}},scales:{x:{ticks:{color:'#6e7681',maxTicksLimit:8},grid:{color:'#1c2128'}},y:{ticks:{color:'#6e7681'},grid:{color:'#1c2128'},..._yr(ds)}}}});
+}
+function render(d){
+  window._d=d;
+  const P=d.paper, L=d.live;
+  document.getElementById('updated').textContent='업데이트: '+((P&&P.updated)||(L&&L.updated)||'')+' · 60초 자동갱신';
+  // 페이퍼
+  if(P){
+    window._P=P; drawPCoin(P);   // 코인 선택 버튼 + 선택 코인 카드 + 큰 차트(손익 vs 홀드) — 합산 안 함
+    document.querySelector('#pCoin tbody').innerHTML=(P.coins||[]).map(c=>{
+      const cc=c.pnl>=0?'up':'down',c24=(c.chg24h||0)>=0?'up':'down';
+      return `<tr><td>${c.label||c.market.split('-')[1]}${c.stopped?' ⛔':''}</td><td class="${cc}">${pct(c.pnl)}</td><td class="${c24}">${((c.chg24h||0)>=0?'+':'')+(c.chg24h||0)}%</td><td>${c.buys}/${c.sells}</td><td>${c.inv_frac}%</td></tr>`;}).join('');
+    document.querySelector('#pTrades tbody').innerHTML=tradeRows(P.trades);
+    const rk=d.ranking, pr=document.getElementById('pRank');
+    const rtop=((rk&&rk.top)||[]).filter(r=>r&&r.market&&typeof r.edge==='number');
+    if(rtop.length){pr.style.display='block';pr.innerHTML=`<div class="k">🏆 코인 선정 — 지난 24h MM 초과수익 (매시간 갱신${rk.updated?' · '+rk.updated:''})</div><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:10px">`+rtop.map((r,i)=>`<span style="font-size:.85rem">${i+1}위 <b>${r.market.split('-')[1]}</b> <b class="${r.edge>=0?'up':'down'}">${r.edge>=0?'+':''}${r.edge}%</b> <span style="color:#6e7681">역선택 ${r.adv}b</span></span>`).join('')+'</div>';}
+    else pr.style.display='none';
+  }
+  // 실거래
+  const lb=document.getElementById('liveBody');
+  if(L){
+    const Lt=L.total||{equity:L.equity,pnl:L.pnl}, lanes=L.coins||L.lanes||[];
+    const _lh=rangeFilter(L.history||[]), _ll=_lh.length?_lh[_lh.length-1]:null;   // 기간 반영 카드(손익·BTC홀드) — 차트와 동일 기준
+    const _pnl=_ll?_ll.pnl:(Lt.pnl||0);                                            // 기간 총손익%
+    const _won=_lh.length>1?(_lh[_lh.length-1].equity-_lh[0].equity):((Lt.equity||0)-(L.start_val||0));   // 기간 손익(원)
+    const _bh=(_ll&&_ll.bh!=null)?_ll.bh:(L.bh?L.bh.pnl:null);                     // 기간 BTC홀드%
+    const _fee=(_lh.length>1&&_ll&&_ll.fee!=null&&_lh[0].fee!=null)?(_ll.fee-_lh[0].fee):(L.fee||0);   // 기간 거래수수료(끝−시작 누적)
+    const cls=_pnl>=0?'up':'down';
+    lb.innerHTML=`<div class="cards">
+      <div class="card"><div class="k">실거래 자산 <span class="badge live">LIVE</span></div><div class="v">${fmt(Lt.equity)}원</div></div>
+      <div class="card"><div class="k">총 손익</div><div class="v ${cls}">${pct(_pnl)}</div></div>
+      <div class="card"><div class="k">총손익(원)</div><div class="v ${cls}">${fmt(_won)}원</div></div>
+      <div class="card"><div class="k">BTC 홀드</div><div class="v ${_bh!=null&&_bh>=0?'up':'down'}">${_bh!=null?pct(_bh):'-'}</div></div>      <div class="card"><div class="k">거래 수수료</div><div class="v">${fmt(_fee)}원</div></div>
+      <div class="card"><div class="k">운영 코인</div><div class="v">${lanes.length}개${L.halted?' ⛔':''}</div></div>
+    </div>
+    ${lanes.length?`<div class="chartbox"><table><thead><tr><th>코인</th><th>재고손익</th><th>재고비중</th><th>상태</th></tr></thead><tbody>
+    ${lanes.map(l=>`<tr><td>${l.coin}</td><td class="${l.pnl>=0?'up':'down'}">${pct(l.pnl)}</td><td>${l.inv_frac}%</td><td>${l.resting?'😴 '+l.resting+'분 쉼':(l.halted?'⛔ 정지':'🟢 가동')}</td></tr>`).join('')}
+    </tbody></table></div>`:''}
+    <div class="chartbox"><canvas id="lChart" height="110"></canvas></div>
+    ${d.holdings?`<h2>💰 보유 자산 <span style="font-size:.72rem;color:var(--mut);font-weight:400">업비트 계좌</span></h2>
+    <div class="chartbox"><table><thead><tr><th>종목</th><th>수량</th><th>평단</th><th>현재가</th><th>평가</th><th>수익률</th></tr></thead><tbody>
+    <tr><td>KRW</td><td>-</td><td>-</td><td>-</td><td>${fmt(d.holdings.krw)}원</td><td>-</td></tr>
+    ${d.holdings.coins.map(h=>{const hc=h.pnl>=0?'up':'down';return `<tr><td>${h.coin}</td><td>${num(h.qty)}</td><td>${fmt(h.avg)}</td><td>${num(h.price)}</td><td>${fmt(h.value)}원</td><td class="${hc}">${pct(h.pnl)}</td></tr>`;}).join('')}
+    <tr style="font-weight:600;border-top:1px solid #30363d"><td>합계</td><td colspan="3"></td><td>${fmt(d.holdings.total)}원</td><td class="${d.holdings.pnl>=0?'up':'down'}">${pct(d.holdings.pnl)}</td></tr>
+    </tbody></table></div>`:''}
+    <h2>🧾 실거래 체결 히스토리</h2>
+    <div class="chartbox"><table><thead><tr><th>일시</th><th>코인</th><th>구분</th><th>체결가</th><th>수량</th></tr></thead><tbody>
+    ${(L.trades||[]).slice().sort((a,b)=>a.ts<b.ts?1:-1).map(f=>{const sc=f.side==='매수'?'down':'up';return `<tr><td>${f.ts}</td><td>${f.coin}</td><td class="${sc}">${f.side}</td><td>${num(f.price)}</td><td>${num(f.qty)}</td></tr>`;}).join('')||'<tr><td colspan="5" style="text-align:center;color:#6e7681">체결 없음</td></tr>'}
+    </tbody></table></div>`;
+    lc=lineChart(document.getElementById('lChart'),lc,rangeFilter(L.history||[]));
+  }else{
+    lb.innerHTML=`<div class="card" style="text-align:center;color:var(--mut);padding:30px">
+      💤 <b>실거래 미시작</b><br/><br/>페이퍼 검증을 통과한 코인만 소액으로 시작합니다.<br/>
+      실거래가 켜지면 여기 표시됩니다.</div>`;
+  }
+  if(window.mermaid&&!mmDone){try{mermaid.run({nodes:document.querySelectorAll('.mermaid')});mmDone=true;}catch(e){}}
+}
+</script></body></html>
