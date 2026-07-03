@@ -167,9 +167,10 @@ function rangeFilter(h){
   let f=h;
   if(RANGE.from||RANGE.to)f=h.filter(x=>{const t=tsDate(x.ts);return(!RANGE.from||t>=RANGE.from)&&(!RANGE.to||t<=RANGE.to);});
   if(!f.length)return [];
-  const e0=f[0].equity,b0=f[0].bh;
-  return f.map(x=>{const o={ts:x.ts,equity:x.equity,coins:x.coins};
-    o.pnl=(e0&&x.equity!=null)?(x.equity/e0-1)*100:x.pnl;
+  const e0=f[0].equity,b0=f[0].bh,p0=f[0].pnl;
+  return f.map(x=>{const o={ts:x.ts,equity:x.equity,coins:x.coins,flow:x.flow};
+    // pnl 원시리즈(Lambda TWR — 입출금 제외)를 구간 시작 기준으로 체인. equity 비율 폴백(옛 payload)은 입출금이 손익에 섞이는 차선책
+    o.pnl=(p0!=null&&x.pnl!=null)?((1+x.pnl/100)/(1+p0/100)-1)*100:((e0&&x.equity!=null)?(x.equity/e0-1)*100:x.pnl);
     if(x.bh!=null&&b0!=null)o.bh=((1+x.bh/100)/(1+b0/100)-1)*100;
     o.fee=x.fee;   // 누적 수수료(절대값) 그대로 통과 — 카드에서 구간 끝−시작 차분
     return o;});
@@ -292,11 +293,11 @@ function dailyPnl(hist,dailyBh){   // equity 곡선 → 거래일별 그날 손�
   const byDay={};
   for(const h of hist){if(h.equity==null)continue;const k=_dayKey9(h.ts||'');(byDay[k]=byDay[k]||[]).push(h);}
   return Object.keys(byDay).sort().map(d=>{const a=byDay[d],s=a[0],e=a[a.length-1];
-    const gp=s.equity?(e.equity/s.equity-1)*100:0;
+    const gp=(s.pnl!=null&&e.pnl!=null)?((1+e.pnl/100)/(1+s.pnl/100)-1)*100:(s.equity?(e.equity/s.equity-1)*100:0);   // TWR pnl 체인 — 입금이 그날 손익으로 잡히지 않게 (equity 비율은 옛 payload 폴백)
     let bp=null;                                              // BTC 홀드 — 업비트 일봉 정본(daily_bh, 전일종가→종가=전일대비) 우선. 없으면 bh곡선 근사 폴백
     if(dailyBh&&dailyBh[d]!=null)bp=dailyBh[d];
     else if(s.bh!=null&&e.bh!=null){const si=1+s.bh/100;bp=si?((1+e.bh/100)/si-1)*100:0;}
-    return {day:d,won:e.equity-s.equity,pct:gp,bh:bp,diff:bp==null?null:gp-bp};});
+    return {day:d,won:(e.equity-s.equity)-((e.flow||0)-(s.flow||0)),pct:gp,bh:bp,diff:bp==null?null:gp-bp};});
 }
 function dailyTable(hist,dailyBh){   // 일별 손익 표 — 그리드 vs BTC 홀드(일봉 정본). 막대차트 대체. 최신일 위로(내림차순)
   const dd=dailyPnl(hist,dailyBh).slice().reverse();
@@ -333,7 +334,7 @@ function render(d){
     const Lt=L.total||{equity:L.equity,pnl:L.pnl}, lanes=L.coins||L.lanes||[];
     const _lh=rangeFilter(L.history||[]), _ll=_lh.length?_lh[_lh.length-1]:null;   // 기간 반영 카드(손익·BTC홀드) — 차트와 동일 기준
     const _pnl=_ll?_ll.pnl:(Lt.pnl||0);                                            // 기간 총손익%
-    const _won=_lh.length>1?(_lh[_lh.length-1].equity-_lh[0].equity):((Lt.equity||0)-(L.start_val||0));   // 기간 손익(원)
+    const _won=_lh.length>1?((_lh[_lh.length-1].equity-_lh[0].equity)-((_lh[_lh.length-1].flow||0)-(_lh[0].flow||0))):((Lt.equity||0)-(L.start_val||0));   // 기간 손익(원) — 입출금(flow) 차감
     const _bh=(_ll&&_ll.bh!=null)?_ll.bh:(L.bh?L.bh.pnl:null);                     // 기간 BTC홀드%
     const _fee=(_lh.length>1&&_ll&&_ll.fee!=null&&_lh[0].fee!=null)?(_ll.fee-_lh[0].fee):(L.fee||0);   // 기간 거래수수료(끝−시작 누적)
     const cls=_pnl>=0?'up':'down';
