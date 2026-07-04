@@ -168,7 +168,7 @@ function rangeFilter(h){
   if(RANGE.from||RANGE.to)f=h.filter(x=>{const t=tsDate(x.ts);return(!RANGE.from||t>=RANGE.from)&&(!RANGE.to||t<=RANGE.to);});
   if(!f.length)return [];
   const e0=f[0].equity,b0=f[0].bh,p0=f[0].pnl;
-  return f.map(x=>{const o={ts:x.ts,equity:x.equity,coins:x.coins,flow:x.flow};
+  return f.map(x=>{const o={ts:x.ts,equity:x.equity,coins:x.coins,flow:x.flow,cb:x.cb,cs:x.cs};
     // pnl 원시리즈(Lambda TWR — 입출금 제외)를 구간 시작 기준으로 체인. equity 비율 폴백(옛 payload)은 입출금이 손익에 섞이는 차선책
     o.pnl=(p0!=null&&x.pnl!=null)?((1+x.pnl/100)/(1+p0/100)-1)*100:((e0&&x.equity!=null)?(x.equity/e0-1)*100:x.pnl);
     if(x.bh!=null&&b0!=null)o.bh=((1+x.bh/100)/(1+b0/100)-1)*100;
@@ -337,12 +337,15 @@ function render(d){
     const _won=_lh.length>1?((_lh[_lh.length-1].equity-_lh[0].equity)-((_lh[_lh.length-1].flow||0)-(_lh[0].flow||0))):((Lt.equity||0)-(L.start_val||0));   // 기간 손익(원) — 입출금(flow) 차감
     const _bh=(_ll&&_ll.bh!=null)?_ll.bh:(L.bh?L.bh.pnl:null);                     // 기간 BTC홀드%
     const _fee=(_lh.length>1&&_ll&&_ll.fee!=null&&_lh[0].fee!=null)?(_ll.fee-_lh[0].fee):(L.fee||0);   // 기간 거래수수료(끝−시작 누적)
+    const _cb=(_lh.length>1&&_ll&&_ll.cb!=null&&_lh[0].cb!=null)?(_ll.cb-_lh[0].cb):((_ll&&_ll.cb!=null)?_ll.cb:0);   // 기간 매수 체결수(끝−시작 누적)
+    const _cs=(_lh.length>1&&_ll&&_ll.cs!=null&&_lh[0].cs!=null)?(_ll.cs-_lh[0].cs):((_ll&&_ll.cs!=null)?_ll.cs:0);   // 기간 매도 체결수
     const cls=_pnl>=0?'up':'down';
     lb.innerHTML=`<div class="cards">
       <div class="card"><div class="k">실거래 자산 <span class="badge live">LIVE</span></div><div class="v">${fmt(Lt.equity)}원</div></div>
       <div class="card"><div class="k">총 손익</div><div class="v ${cls}">${pct(_pnl)}</div></div>
       <div class="card"><div class="k">총손익(원)</div><div class="v ${cls}">${fmt(_won)}원</div></div>
       <div class="card"><div class="k">BTC 홀드</div><div class="v ${_bh!=null&&_bh>=0?'up':'down'}">${_bh!=null?pct(_bh):'-'}</div></div>      <div class="card"><div class="k">거래 수수료</div><div class="v">${fmt(_fee)}원</div></div>
+      <div class="card"><div class="k">체결(매수/매도)</div><div class="v">${_cb}/${_cs}</div></div>
       <div class="card"><div class="k">운영 코인</div><div class="v">${lanes.length}개${L.halted?' ⛔':''}</div></div>
     </div>
     ${lanes.length?`<div class="chartbox"><table><thead><tr><th>코인</th><th>재고손익</th><th>재고비중</th><th>상태</th></tr></thead><tbody>
